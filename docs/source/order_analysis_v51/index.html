@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Analysis v51 - Overall · Order Contribution</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+  <div class="inner">
+    <div class="header-copy"><h1>Order Analysis</h1><p>CSV 기반 오더 및 컬러맵 분석</p><div id="analyzerVersion" class="analyzer-version"></div></div>
+    <button id="themeToggle" class="theme-toggle secondary" type="button" aria-label="다크모드 전환">🌙 다크모드</button>
+  </div>
+</header>
+
+<main>
+  <section class="card csv-upload-card" id="csvUploadSection">
+    <div class="section-header">
+      <h2>CSV 파일 업로드</h2>
+      <span id="csvCollapsedSummary" class="csv-collapsed-summary"></span>
+      <button id="csvUploadToggle" class="secondary csv-upload-toggle" type="button" aria-expanded="true">업로드 영역 접기</button>
+    </div>
+    <div id="dropZone" class="upload-zone" tabindex="0" role="button" aria-label="CSV 파일 선택">
+      <div class="upload-icon">▣</div>
+      <div class="upload-title">CSV 파일 업로드</div>
+      <div class="upload-help">또는 아래 버튼을 눌러 파일을 선택.</div>
+      <div>
+        <button id="selectButton" class="primary" type="button">CSV 파일 선택</button>
+        <button id="resetButton" class="secondary hidden" type="button">초기화</button>
+      </div>
+      <input id="fileInput" type="file" accept=".csv,text/csv" />
+      <div class="privacy-note">파일은 서버로 전송되지 않으며 현재 브라우저 안에서만 처리됨.</div>
+    </div>
+    <div id="status" class="status-line">분석할 CSV 파일을 선택.</div>
+    <div id="csvPreview" class="csv-preview-card hidden">
+      <div id="csvRecognitionSignal" class="csv-recognition-signal" aria-live="polite">
+        <div class="csv-signal-lights" aria-hidden="true">
+          <span id="csvSignalGreen" class="csv-signal-light green"></span>
+          <span id="csvSignalYellow" class="csv-signal-light yellow"></span>
+          <span id="csvSignalRed" class="csv-signal-light red"></span>
+        </div>
+        <span id="csvSignalText" class="csv-signal-text">CSV 인식 상태 확인 중</span>
+        <span id="csvSignalDetail" class="csv-signal-detail"></span>
+      </div>
+      <div class="csv-preview-header">
+        <div>
+          <div class="csv-preview-title">CSV 데이터 인식 확인</div>
+          <div class="small">파일 구조, Curve, RPM, 채널, 주파수 데이터가 정상적으로 인식되었는지 확인한 후 분석을 실행.</div>
+        </div>
+        <div class="csv-preview-actions">
+          <button id="cancelCsvPreview" class="secondary" type="button">다시 선택</button>
+          <button id="confirmCsvAnalysis" class="primary" type="button" disabled>분석 실행</button>
+        </div>
+      </div>
+      <div id="csvPreviewFileName" class="csv-preview-file-name"></div>
+      <div id="csvPreviewSummary" class="csv-preview-summary"></div>
+      <div id="csvPreviewChecks"></div>
+      <div class="csv-preview-table" style="margin-top:10px">
+        <table><thead><tr><th>Curve</th><th>RPM</th><th>채널</th><th>위치</th><th>방향</th><th>단위</th><th>데이터 수</th><th>주파수 범위</th><th>상태</th></tr></thead><tbody id="csvPreviewBody"></tbody></table>
+      </div>
+      <div id="csvPreviewNote" class="csv-preview-note small"></div>
+    </div>
+    
+  </section>
+
+  <div id="resultArea" class="hidden">
+    <section class="card" id="focusedAnalysis">
+      <div class="toolbar">
+        <h2 style="margin:0">Order Analysis</h2>
+        <button id="downloadOrderAnalysisXlsx" class="primary" type="button">Order Analysis XLSX 저장</button>
+      </div>
+      <div class="analysis-layout">
+        <aside class="selection-panel">
+          <h3>채널 선택</h3>
+          <div style="display:flex;gap:6px;margin-bottom:9px">
+            <button id="selectAllChannels" class="secondary" type="button" style="margin:0;padding:6px 10px">전체</button>
+            <button id="clearChannels" class="secondary" type="button" style="margin:0;padding:6px 10px">해제</button>
+          </div>
+          <div id="multiChannelGrid" class="channel-grid"></div>
+
+          <div class="order-parameter-grid">
+            <div class="order-parameter-item order-input-wide">
+              <label class="field-label" for="multiOrderInput">오더 입력</label>
+              <input id="multiOrderInput" class="analysis-input" type="text" value="" placeholder="예: 1, 3, 9" />
+              <div class="small">쉼표로 여러 오더를 입력.</div>
+            </div>
+            <div class="order-parameter-item">
+              <label class="field-label" for="multiSearchWidth">피크 검색 범위 (±Hz)</label>
+              <input id="multiSearchWidth" class="analysis-input" type="number" value="1" min="0" step="1" />
+            </div>
+            <div class="order-parameter-item">
+              <label class="field-label" for="multiSumWidth">피크 중심 합산 범위 (±Hz)</label>
+              <input id="multiSumWidth" class="analysis-input" type="number" value="1" min="0" step="1" />
+            </div>
+            <div class="order-parameter-item">
+              <label class="field-label">그래프 표시 옵션</label>
+              <div class="graph-display-options">
+                <label class="graph-display-option overall-option">
+                  <input id="showOverall" type="checkbox" checked />
+                  <span>Overall 그래프 표시</span>
+                </label>
+                <label class="graph-display-option rss-option">
+                  <input id="showRssSum" type="checkbox" checked />
+                  <span>오더 RSS 합산 그래프 표시</span>
+                </label>
+              </div>
+              <div class="graph-display-note">
+                <span>Overall = 전체 Spectrum 에너지</span>
+		</div>
+		<div class="graph-display-note">
+                <span>RSS = 선택 오더 진폭의 에너지 합산값</span>
+               </div>
+          </div>
+</div>
+          <details class="advanced-settings">
+            <summary>단위 및 dB 기준값 설정 <span>고급 설정</span></summary>
+            <div class="dual-unit-settings">
+            <section class="unit-type-panel noise">
+              <div class="unit-type-title">소음</div>
+              <label class="field-label" for="noiseAmplitudeMode">진폭 표시 단위</label>
+              <select id="noiseAmplitudeMode" class="analysis-input">
+                <option value="linear">Amplitude</option>
+                <option value="db" selected>dB</option>
+                <option value="dba">dBA</option>
+              </select>
+              <div id="noiseInputDbReferencePanel">
+                <label class="field-label" for="noiseSourceDbReference">Raw 데이터 dB 기준값</label>
+                <input id="noiseSourceDbReference" class="analysis-input" title="CSV의 dB 입력값을 선형 Amplitude로 역변환할 때 사용하는 기준 진폭" type="number" value="2e-5" min="1e-30" step="any" />
+              </div>
+              <label class="field-label" for="noiseOrderDbReference">오더분석 dB 기준값</label>
+              <input id="noiseOrderDbReference" class="analysis-input" type="number" value="2e-5" min="1e-30" step="any" />
+            </section>
+            <section class="unit-type-panel vibration">
+              <div class="unit-type-title">진동</div>
+              <label class="field-label" for="vibrationAmplitudeMode">진폭 표시 단위</label>
+              <select id="vibrationAmplitudeMode" class="analysis-input">
+                <option value="linear" selected>Amplitude</option>
+                <option value="db">dB</option>
+                <option value="dba">dBA</option>
+              </select>
+              <div id="vibrationInputDbReferencePanel">
+                <label class="field-label" for="vibrationSourceDbReference">Raw 데이터 dB 기준값</label>
+                <input id="vibrationSourceDbReference" class="analysis-input" title="CSV의 dB 입력값을 선형 Amplitude로 역변환할 때 사용하는 기준 진폭" type="number" value="1.0197e-7" min="1e-30" step="any" />
+              </div>
+              <label class="field-label" for="vibrationOrderDbReference">오더분석 dB 기준값</label>
+              <input id="vibrationOrderDbReference" class="analysis-input" type="number" value="1.0197e-7" min="1e-30" step="any" />
+            </section>
+            </div>
+            <div class="small advanced-settings-note">Raw 데이터 dB 기준값은 CSV 입력 스케일이 dB 또는 dBA인 경우에만 표시. <dB 입력을 Amplitude로 변환할 때 사용하는 기준 진폭.</div>
+          </details>
+
+        </aside>
+
+        <div class="combined-panel">
+          <div id="multiKpis" class="compact-kpis"></div>
+          <div class="map-toolbar">
+          </div>
+          <div class="axis-layout">
+            <div class="axis-control axis-control-y">
+              <strong>Amplitude Axis</strong>
+              <label for="graphAmpMax">최대</label><input id="graphAmpMax" type="number" step="any">
+              <div class="axis-spacer"></div>
+              <label for="graphAmpMin">최소</label><input id="graphAmpMin" type="number" step="any">
+            </div>
+            <div>
+              <div id="orderGraphFrame" class="canvas-wrap mouse-resizable"><canvas id="combinedOrderCanvas"></canvas></div>
+              <div class="axis-control axis-control-x">
+                <div><label for="graphRpmMin">RPM 최소</label><input id="graphRpmMin" type="number" step="any"></div>
+                <strong>RPM Axis</strong>
+                <div><label for="graphRpmMax">RPM 최대</label><input id="graphRpmMax" type="number" step="any"></div>
+              </div>
+            </div>
+          </div>
+          <div id="orderGraphNote" class="graph-note">그래프 하단을 위아래로 드래그하여 높이를 조절 가능.</div>
+          <div id="combinedLegend" class="series-legend"></div>
+          <div class="graph-note">X축: RPM. 일반 Order는 차수별 합산 진폭, RSS는 선택 Order의 에너지 합산, Overall은 전체 Spectrum 에너지.</div>
+        </div>
+      </div>
+
+    <details class="order-subsection" id="orderContributionSection">
+      <summary class="order-subsection-summary">
+        <span>차수별 기여도 분석</span>
+        <span class="summary-help">Overall 대비 선택 차수의 에너지 기여율</span>
+      </summary>
+      <div class="order-subsection-body">
+      <div class="toolbar">
+        <div>
+          <h2 style="margin:0">차수별 기여도 분석</h2>
+          <div class="small" style="margin-top:4px">선택한 Order 성분의 에너지 기여율을 RPM별로 계산. 각 차수의 기여도는 해당 RPM의 전체 Spectrum Overall 에너지를 기준으로 계산.</div>
+        </div>
+      </div>
+      <div class="contribution-analysis-layout">
+        <aside class="contribution-selection-panel">
+          <label class="field-label" for="contributionChannelSelect">분석 채널</label>
+          <select id="contributionChannelSelect" class="analysis-input"></select>
+          <div class="small" style="margin-top:8px">현재 Order Analysis에서 선택한 채널/Order를 기준으로 계산.</div>
+          <div id="contributionFormula" class="small">
+            기여도(%) = Aᵢ² / Overall² × 100
+          </div>
+        </aside>
+        <div>
+          <div id="contributionSummary" class="contribution-summary"></div>
+          <div id="contributionChartWrap" class="contribution-chart-wrap"><canvas id="orderContributionCanvas"></canvas></div>
+          <div id="contributionLegend" class="contribution-legend"></div>
+          <div id="contributionTableWrap" class="contribution-table-wrap">
+            <table class="contribution-table"><thead id="contributionTableHead"></thead><tbody id="contributionTableBody"></tbody></table>
+          </div>
+          <div id="contributionNote" class="contribution-note small"></div>
+        </div>
+      </div>
+      </div>
+    </details>
+    </section>
+
+
+
+    <section class="card" id="multiColorMapSection">
+      <h2>Spectrum Map</h2>
+      <div class="spectrum-analysis-layout">
+        <aside class="selection-panel spectrum-selection-panel">
+          <label class="field-label" for="mapChannelSelect">채널 선택</label>
+          <select id="mapChannelSelect" class="analysis-input"></select>
+
+          <label class="channel-option" style="margin-top:12px">
+            <input id="mapOrderOverlayEnabled" type="checkbox" checked>
+            <span>오더 성분 표시</span>
+          </label>
+          <div id="mapOrderOverlaySettings">
+            <label class="field-label" for="mapOrderOverlayInput">표시할 오더 성분</label>
+            <input id="mapOrderOverlayInput" class="analysis-input" type="text" value="" placeholder="예: 1, 3, 6, 9">
+            <div class="small">쉼표로 오더를 입력.</div>
+          </div>
+
+          <div class="map-axis-mode-row">
+            <strong style="font-size:13px">가로축 기준</strong>
+            <button id="mapFrequencyAxisButton" class="secondary axis-mode-button active" type="button">Frequency</button>
+            <button id="mapOrderAxisButton" class="secondary axis-mode-button" type="button">Order</button>
+          </div>
+          <div class="spectrum-input-note small">Spectrum Map은 Order Analysis의 채널·진폭 단위·dB 기준값 설정을 공유.</div>
+        </aside>
+
+        <div class="spectrum-map-panel">
+          <div class="axis-layout">
+            <div class="axis-control axis-control-y">
+              <strong>RPM Axis</strong>
+              <label for="mapRpmMax">최대</label><input id="mapRpmMax" type="number" step="any">
+              <div class="axis-spacer"></div>
+              <label for="mapRpmMin">최소</label><input id="mapRpmMin" type="number" step="any">
+            </div>
+            <div>
+              <div id="spectrumMapFrame" class="canvas-wrap mouse-resizable"><canvas id="multiColorMapCanvas"></canvas></div>
+              <div class="axis-control axis-control-x">
+                <div id="mapXAxisControlMin">
+                  <div id="mapFrequencyAxisControlMin"><label for="mapMinFrequency">주파수 최소 (Hz)</label><input id="mapMinFrequency" type="number" min="0" step="any"></div>
+                  <div id="mapOrderAxisControlMin" class="hidden"><label for="mapMinOrder">오더 최소</label><input id="mapMinOrder" type="number" min="0" step="any" inputmode="decimal"></div>
+                </div>
+                <strong id="spectrumMapXAxisLabel">Frequency Axis</strong>
+                <div id="mapXAxisControlMax">
+                  <div id="mapFrequencyAxisControlMax"><label for="mapMaxFrequency">주파수 최대 (Hz)</label><input id="mapMaxFrequency" type="number" min="0" step="any"></div>
+                  <div id="mapOrderAxisControlMax" class="hidden"><label for="mapMaxOrder">오더 최대</label><input id="mapMaxOrder" type="number" min="0" step="any" inputmode="decimal"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="spectrumMapNote" class="graph-note">Spectrum Map 그래프 하단을 위아래로 드래그하여 높이를 조절 가능. <br>
+Frequency / Order 축을 선택하면 하단 X축 최소·최대 입력 위치에서 해당 기준의 범위를 직접 설정 가능.  <br>
+Order 축에서는 정수 오더 눈금과 선택한 분석 오더 성분 가이드선을 함께 확인 가능.</div>
+          <div class="color-axis-row">
+            <div class="color-end-control color-end-min">
+              <label for="mapAmpMin">최소</label>
+              <input id="mapAmpMin" type="number" step="any">
+            </div>
+            <div class="map-legend-center">
+              <strong id="mapLegendUnit">진폭</strong>
+              <div class="map-gradient"></div>
+              <div id="mapLegendTicks" class="legend-scale-values"><span>-</span><span>-</span><span>-</span><span>-</span><span>-</span></div>
+            </div>
+            <div class="color-end-control color-end-max">
+              <label for="mapAmpMax">최대</label>
+              <input id="mapAmpMax" type="number" step="any">
+            </div>
+          </div>
+          <div id="spectrumMapMaxInfo" class="graph-note" style="font-weight:700"></div>
+          <div id="multiMapNote" class="graph-note"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card hidden">
+      <div class="toolbar">
+        <h2 style="margin:0">2. 파일 요약</h2>
+        
+      </div>
+      <div id="summaryGrid" class="summary-grid"></div>
+    </section>
+
+    <section class="card hidden">
+      <h2>3. 구조 검증 결과</h2>
+      <ul id="checkList" class="check-list"></ul>
+    </section>
+
+    <section class="card hidden">
+      <h2>4. 채널 × RPM 매핑</h2>
+      <div class="small" style="margin-bottom:10px">메타데이터의 Run name, Point id, Point direction을 기준으로 자동 분류.</div>
+      <div class="table-wrap">
+        <table>
+          <thead id="mappingHead"></thead>
+          <tbody id="mappingBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card hidden">
+      <h2>5. Curve 상세 목록</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">Curve</th><th>RPM</th><th>위치</th><th>방향</th><th>Label</th>
+              <th>X 단위</th><th>Y 단위</th><th class="num">데이터 수</th>
+              <th class="num">최소 주파수</th><th class="num">최대 주파수</th><th class="num">간격</th><th>상태</th>
+            </tr>
+          </thead>
+          <tbody id="curveBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card hidden">
+      <div class="toolbar">
+        <h2 style="margin:0">6. 정규화 데이터 모델 검증</h2>
+        <div>
+          <button id="downloadModelButton" class="secondary" type="button">정규화 JSON 저장</button>
+        </div>
+      </div>
+      <div class="model-note">
+        CSV의 Curve 순서가 아니라 메타데이터를 기준으로 <strong>채널 → RPM → 스펙트럼</strong> 구조를 구성.
+        아래에서 채널과 RPM을 바꾸며 원본 첫 10개 데이터가 정확히 연결되는지 확인 가능.
+      </div>
+      <div class="model-toolbar">
+        <label for="modelChannelSelect">채널</label>
+        <select id="modelChannelSelect"></select>
+        <label for="modelRpmSelect">RPM</label>
+        <select id="modelRpmSelect"></select>
+        <button id="copyJsonButton" class="primary" type="button">선택 Curve JSON 복사</button>
+      </div>
+      <div id="modelSummary" class="summary-grid" style="margin-bottom:12px"></div>
+      <div class="table-wrap" style="margin-bottom:12px">
+        <table>
+          <thead><tr><th class="num">Index</th><th class="num">Frequency (Hz)</th><th class="num">Amplitude (g)</th></tr></thead>
+          <tbody id="sampleBody"></tbody>
+        </table>
+      </div>
+      <h3>선택 Curve 정규화 객체 미리보기</h3>
+      <pre id="jsonPreview" class="json-preview"></pre>
+    </section>
+
+    <section class="card hidden">
+      <div class="toolbar">
+        <h2 style="margin:0">7. 오더 주파수 및 최근접 Bin 검증</h2>
+        
+      </div>
+      <div class="formula-box">
+        <strong>계산식</strong><br>
+        회전 기본주파수 = RPM ÷ 60<br>
+        N차 오더 주파수 = N × RPM ÷ 60<br>
+        시험 피크 주파수 = 이론 오더 주파수 ± 피크 검색 범위 안에서 진폭이 가장 큰 주파수<br>
+        오더 진폭 = 검출된 시험 피크 주파수 ± 합산 범위의 진폭을 합산<br>
+        주파수 편차 = 시험 피크 주파수 - 이론 오더 주파수<br>
+        |주파수 편차| ≤ 일치 허용오차이면 "일치"로 판정
+      </div>
+      <div class="order-controls">
+        <div class="control-group">
+          <label for="orderChannelSelect">분석 채널</label>
+          <select id="orderChannelSelect"></select>
+        </div>
+        <div class="control-group">
+          <label for="orderInput">오더</label>
+          <input id="orderInput" type="number" value="9" min="0" step="0.1" />
+        </div>
+        <div class="control-group">
+          <label for="peakSearchInput">피크 검색 범위 (±Hz)</label>
+          <input id="peakSearchInput" type="number" value="1" min="0" step="1" />
+        </div>
+        <div class="control-group">
+          <label for="sumWidthInput">피크 중심 합산 범위 (±Hz)</label>
+          <input id="sumWidthInput" type="number" value="1" min="0" step="1" />
+        </div>
+        <div class="control-group">
+          <label for="matchToleranceInput">오더 주파수 허용 오차 (±Hz)</label>
+          <input id="matchToleranceInput" type="number" value="1" min="0" step="1" />
+        </div>
+      </div>
+      <div id="orderSummary" class="summary-grid" style="margin-bottom:14px"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">RPM</th><th class="num">1X 주파수 (Hz)</th><th class="num">요청 오더</th>
+              <th class="num">이론 주파수 (Hz)</th><th class="num">검색 구간 (Hz)</th>
+              <th class="num">시험 피크 주파수 (Hz)</th><th class="num">주파수 편차 (Hz)</th>
+              <th class="num">편차율 (%)</th><th class="num">실제 환산 오더</th>
+              <th class="num">피크 진폭 (g)</th><th>일치 판정</th>
+            </tr>
+          </thead>
+          <tbody id="orderBody"></tbody>
+        </table>
+      </div>
+      <div class="small" style="margin-top:10px">
+        시험 피크는 지정된 검색 구간 안에서 가장 큰 단일 Bin 진폭으로 정의. 대역 RMS는 적용하지 않음.
+      </div>
+      <div class="order-chart-grid">
+        <div class="chart-panel">
+          <h3>RPM별 시험 피크 진폭</h3>
+          <div class="chart-canvas-wrap"><canvas id="orderAmplitudeCanvas" class="order-chart"></canvas></div>
+          <div class="chart-legend"><span class="legend-item"><span class="legend-line" style="border-color:#1769aa"></span>피크 진폭 (g)</span></div>
+        </div>
+        <div class="chart-panel">
+          <h3>이론주파수와 시험 피크 주파수 비교</h3>
+          <div class="chart-canvas-wrap"><canvas id="orderFrequencyCanvas" class="order-chart"></canvas></div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-line" style="border-color:#6b4bb8"></span>이론주파수</span>
+            <span class="legend-item"><span class="legend-line" style="border-color:#d65b20"></span>시험 피크 주파수</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#16845b"></span>일치</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#ba2d2d"></span>불일치</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card hidden">
+      <div class="toolbar">
+        <h2 style="margin:0">8. RPM × 주파수 × 진폭 컬러맵</h2>
+      </div>
+      <div class="model-note">
+        X축은 주파수(Hz), Y축은 RPM, 색상은 선택 채널의 진폭(g).
+        흰색 선은 이론 오더 주파수, 검은 원은 검색 구간에서 찾은 시험 피크 주파수.
+      </div>
+      <div class="colormap-controls">
+        <div>
+          <label for="mapMinFreq">표시 최소 주파수 (Hz)</label>
+          <input id="mapMinFreq" type="number" value="0" min="0" step="1" />
+        </div>
+        <div>
+          <label for="mapMaxFreq">표시 최대 주파수 (Hz)</label>
+          <input id="mapMaxFreq" type="number" value="500" min="1" step="1" />
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="colorMapCanvas" width="1200" height="500"></canvas>
+      </div>
+      <div class="legend-row">
+        <strong>진폭</strong><span id="legendMin">최소</span><div class="legend-gradient"></div><span id="legendMax">최대</span>
+        <span class="line-key"><span class="line-swatch"></span>이론 오더</span>
+        <span class="line-key"><span class="dot-swatch"></span>시험 피크</span>
+      </div>
+      <div id="colorMapMessage" class="small" style="margin-top:8px"></div>
+    </section>
+
+    <section class="card hidden">
+      <h2>9. 경고 및 오류</h2>
+      <div id="issueArea"></div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  이 화면은 이론 오더 주파수 주변의 시험 피크를 탐색하고 두 주파수의 일치 여부를 판정. 진동 스펙트럼 그래프는 포함하지 않음.
+</footer>
+<script src="script.js"></script>
+</body>
+</html>
